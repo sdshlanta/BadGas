@@ -8,6 +8,7 @@ from java.net import URL
 import re
 from datetime import datetime
 from bs4 import BeautifulSoup
+import string
 
 class BurpExtender(IBurpExtender, IContextMenuFactory):
 	def registerExtenderCallbacks(self, callbacks):
@@ -44,9 +45,8 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
 			self.hosts.add(host)            
 
 			httpResponse = traffic.getResponse()
-
 			if httpResponse:
-				self.get_words(httpResponse)
+				self.words(httpResponse)
 
 		self.printWordlist()
 		return
@@ -59,32 +59,36 @@ class BurpExtender(IBurpExtender, IContextMenuFactory):
 		if headers.lower().find("content-type: text") == -1:
 			return
 
-		soup = BeautifulSoup(html, 'html.parser')
-		words = soup.text
-		#print words
+		soup = BeautifulSoup(body, 'html.parser')
+		words = soup.text.split(' ')
 
 		for word in words:
+			word = word.encode('ascii', 'ignore')
+			#print word
 			# filter out long strings
-			if len(word) <= 12:
-				self.wordlist.add(word.lower())
+			wordlen = len(word)
+			if wordlen <= 20 and wordlen >=3:
+				self.wordlist.add(word.lower().replace('\n', '').replace(',', '').replace('}', '').replace('{', '').replace(')','').replace('(','').replace('\t', '').replace('/', '').replace("'","").replace(';',''))
 
 		return
 
-	def mangle(self, word):
+	def sufix(self, word):
 		year = datetime.now().year
-		suffixes = ["", "1", "!", year, "1!", "butts", "12", "2@"]
-		mangled = []
+		suffixes = ["", "1", "!", year, "1!", "butts", "butts"+str(year), "12", "2@"]
+		sufixed = []
 
 		for password in (word, word.capitalize()):
 			for suffix in suffixes:
-				mangled.append("%s%s" % (password, suffix))
+				sufixed.append("%s%s" % (password, suffix))
 
-		return mangled
+		return sufixed
 
 	def printWordlist(self):
 		print "# BHP Wordlist for site(s) %s" % \ ", ".join(self.hosts)
 		for word in sorted(self.wordlist):
-			for password in self.mangle(word):
+			#if word.isalnum():
+
+			for password in self.sufix(word):
 				print password
 
 		return
